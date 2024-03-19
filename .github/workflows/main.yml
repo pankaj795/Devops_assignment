@@ -1,1 +1,78 @@
+name: 🚀Generic Workflow
 
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - '*'
+    paths:
+      - '**.go'
+      - '**.ts'
+      - '**.tsx'
+      - '**.php'
+
+jobs:
+  golint:
+    runs-on: ubuntu-22.04
+    if: contains(github.event.head_commit.modified, '.go')
+    steps:
+      - name: 🔄Checkout Code
+        uses: actions/checkout@v2
+      
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.18'
+      
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.49.0
+      
+      - name: Run golangci-lint
+        run: |
+          golangci-lint run --new-from-rev=HEAD~1 --out-format checkstyle | tee golangci-lint-report.xml
+      
+      # Add additional steps to process the results and fail/pass the check
+
+  eslint:
+    runs-on: ubuntu-22.04
+    if: contains(github.event.head_commit.modified, '.ts') || contains(github.event.head_commit.modified, '.tsx')
+    steps:
+      - name: 🔄Checkout Code
+        uses: actions/checkout@v2
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Run ESLint
+        run: npx eslint . --ext .ts,.tsx --format checkstyle | tee eslint-report.xml
+      
+      
+
+  phpcs:
+    runs-on: ubuntu-22.04
+    if: contains(github.event.head_commit.modified, '.php')
+    steps:
+      - name: 🔄Checkout Code
+        uses: actions/checkout@v2
+      
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4' 
+      
+      - name: Install WordPress Coding Standards
+        run: |
+          composer global require "squizlabs/php_codesniffer=*"
+          composer global require "wp-coding-standards/wpcs"
+          phpcs --config-set installed_paths ~/.composer/vendor/wp-coding-standards/wpcs
+      
+      - name: Run PHPCS
+        run: phpcs --standard=WordPress --report=checkstyle --report-file=phpcs-report.xml ./*.php
+      
